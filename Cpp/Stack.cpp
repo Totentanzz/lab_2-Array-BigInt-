@@ -1,4 +1,5 @@
 #include "Stack.h"
+#include <stdexcept>
 
 //Конструктор по умолчанию
 Stack::Stack() {
@@ -25,14 +26,14 @@ void Stack::push(long long value) {
 //Метод просмотра элемента, лежащего в начале стэка (на позиции 0)
 long long Stack::peek() {
 	if (getElmNum() == 0)
-		throw("Exception: stack is empty");
+		throw std::out_of_range("Stack is empty");
 	return getByIndex(0);
 }
 
 //Метод удаления элемента с начала стэка
 void Stack::pop() {
-	if (getElmNum() <= 0)
-		throw("Exception: stack is empty");
+	if (getElmNum() == 0)
+		throw std::out_of_range("Stack is empty");
 	deleteByIndex(0);
 	shiftSliceL(0);
 }

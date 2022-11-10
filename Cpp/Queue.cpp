@@ -1,4 +1,5 @@
 #include "Queue.h"
+#include <stdexcept>
 
 //Конструктор по умолчанию
 Queue::Queue() {
@@ -26,7 +27,7 @@ void Queue::push(long long value) {
 long long Queue::peek() {
 	int index = getElmNum() - 1;
 	if (index < 0)
-		throw("Exception: queue is empty");
+		throw std::out_of_range("Queue is empty");
 	return getByIndex(index);
 }
 
@@ -34,6 +35,6 @@ long long Queue::peek() {
 void Queue::pop() {
 	int index = getElmNum() - 1;
 	if (index < 0)
-		throw("Exception: queue is empty");
+		throw std::out_of_range("Queue is empty");
 	deleteByIndex(index);
 }

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "Array.h"
+#include "DataException.h"
 
 using namespace std;
 
@@ -17,24 +18,20 @@ using namespace std;
 
 	//Конструктор, создающий массив размера N (если N<=0, то присваивается nullptr)
 	Array::Array(int N) {
+		if (N<0)
+			throw length_error("Array constructor: size N is negative");
 		size = N;
 		elemNum = 0;
-		if (size > 0) {
-			arr = new long long[size];
-			init(elemNum);
-		}
-		else arr = nullptr;
+		arr = size>0 ? new long long[size] : nullptr;
+		init(elemNum);
 	}
 
 	//Конструктор копирования
 	Array::Array(const Array& object) {
 		size = object.size;
 		elemNum = object.elemNum;
-		if (size > 0) {
-			arr = new long long[size];
-			memcpy(arr, object.arr, size * sizeof(long long));
-		}
-		else arr = nullptr;
+		arr = size>0 ? new long long[size] : nullptr;
+		memcpy(arr, object.arr, size * sizeof(long long));
 	}
 
 	//Деструктор
@@ -54,11 +51,8 @@ using namespace std;
 
 	//Метод получения массива (копии)
 	long long* Array::getArr() {
-		long long* arrCpy = nullptr;
-		if (this->size > 0) {
-			arrCpy = new long long[size];
-			memcpy(arrCpy, arr, size * sizeof(long long));
-		}
+		long long* arrCpy = size>0 ? new long long[size] : nullptr;
+		memcpy(arrCpy, arr, size * sizeof(long long));
 		return arrCpy;
 	}
 
@@ -69,14 +63,15 @@ using namespace std;
 	* 2)иначе просто уменьшаем размер массива на amount
 	*/
 	void Array::reduceCap(int amount) {
-		if (amount > 0 && amount < size) {
-			long long* arrCpy = new long long[size - amount];
-			memcpy(arrCpy, arr, (size - amount) * sizeof(long long));
-			delete[] arr;
-			arr = arrCpy;
-			if (size == elemNum) elemNum -= amount;
-			size -= amount;
-		}
+		if (amount < 0 || amount >= size)
+			throw length_error("reduceCap: amount is negative");
+		int newSize = size - amount;
+		long long* arrCpy = newSize>0 ? new long long[newSize] : nullptr;
+		memcpy(arrCpy, arr, newSize * sizeof(long long));
+		delete[] arr;
+		arr = arrCpy;
+		size = newSize;
+		elemNum = size < elemNum ? size : elemNum;
 	}
 
 	/*
@@ -86,15 +81,14 @@ using namespace std;
 	void Array::makeEqualSize(int size1, int size2) {
 		int maxSize = size1 < size2 ? size2 : size1;
 		int oldSize = size;
-		if (maxSize > oldSize) {
-			long long* arrCpy;
-			arrCpy = new long long[maxSize];
-			memcpy(arrCpy, arr, oldSize * sizeof(long long));
-			delete[] arr;
-			arr = arrCpy;
-			size = maxSize;
-			init(oldSize);
-		}
+		if (maxSize < oldSize)
+			throw DataException("makeEqualSize: maxSize is less than oldSize", maxSize);
+		long long* arrCpy = new long long[maxSize];
+		memcpy(arrCpy, arr, oldSize * sizeof(long long));
+		delete[] arr;
+		arr = arrCpy;
+		size = maxSize;
+		init(oldSize);
 	}
 
 	/*
@@ -143,8 +137,8 @@ using namespace std;
 
 	//Метод вставки элемента по индеку в массив
 	void Array::insertByIndex(long long value, int index) {
-		if (index > size || index < 0)
-			throw("Exception: out of bounds");
+		if (index < 0 || index > size)
+			throw DataException("insertByIndex: index is out of array bounds", index);
 		if ((arr[index] == 0) && (elemNum < size)) arr[index] = value;
 		else if (index == size) addToEnd(value);
 		else {
@@ -160,22 +154,24 @@ using namespace std;
 	//Метод удаления массива по индексу
 	void Array::deleteByIndex(int index) {
 		if (index < 0 || index >= size)
-			throw("Exception: out of bounds");
+			throw DataException("deleteByIndex: index is out of array bounds", index);
+		int elem=0, digit=arr[index];
+		for (size_t i = 0; i < size; i++) elem += (arr[i] != 0) ? 1 : 0;
 		arr[index] = 0;
-		elemNum--;
+		if ((digit == 0 && elem != elemNum) || digit != 0) elemNum--;
 	}
 	
 	//Метод получения по индексу массива
 	long long Array::getByIndex(int index) {
 		if (index < 0 || index >= size)
-			throw("Exception: out of bounds");
+			throw DataException("getByIndex: index is out of array bounds", index);
 		return arr[index];
 	}
 
 	//Метод получения среза массива
 	long long* Array::getSlice(int from, int to) {
 		if (from < 0 || from > to || to >= size)
-			throw("Exception: out of bounds");
+			throw DataException("getSlice: index is out of bounds",2,from,to);
 		int sliceSize = to - from + 1;
 		long long* arrSlice = new long long[sliceSize];
 		memcpy(arrSlice, arr + from, sliceSize * sizeof(long long));
@@ -189,13 +185,11 @@ using namespace std;
 	*/
 	bool Array::isEmpty() {
 		bool state = true;
-		if (arr != nullptr) state = 0;
 		for (int i = 0; i < elemNum; i++) {
 			if (arr[i] != 0) {
 				state = false;
 				break;
 			}
-			else state = 1;
 		}
 		return state;
 	}
@@ -212,9 +206,9 @@ using namespace std;
 	//Метод сдвига право всех элементов массива, начиная с эл. по индексу index
 	void Array::shiftSliceR(int index) {
 		if (index < 0 || index >= size)
-			throw("Exception: out of bounds");
-		size_t numOfElm = elemNum - index;
-		if (size <= numOfElm) expand();
+			throw DataException("shiftSliceR: index is out of array bounds", index);
+		size_t numOfElm = (arr[size - 1] == 0) ? size - index - 1 : size - index;
+		if (arr[size - 1] != 0) expand();
 		long long* pos = arr + index;
 		memmove(pos + 1, pos, numOfElm * sizeof(long long));
 		arr[index] = 0;
@@ -223,11 +217,12 @@ using namespace std;
 	//Метод сдвига влево всех элементов массива на позицию index
 	void Array::shiftSliceL(int index) {
 		if (index < 0 || index >= size)
-			throw("Exception: out of bounds");
+			throw DataException("shiftSliceL: index is out of array bounds", index);
 		long long* pos = arr + index;
 		size_t numOfElm = size - index - 1;
+		if (arr[index] != 0) elemNum--;
 		memmove(pos, pos + 1, numOfElm * sizeof(long long));
-		arr[numOfElm] = 0;
+		arr[size-1] = 0;
 	}
 
 	//Метод обмена полями двух объектов Array
@@ -254,6 +249,8 @@ using namespace std;
 
 	//Метод присваения 0 всем элементам, начиная с элемента под индексом from
 	void Array::init(int from) {
+		if (from < 0)
+			throw out_of_range("init: index is negative");
 		for (size_t i = from; i < size; i++) {
 			arr[i] = 0;
 		}
@@ -266,14 +263,13 @@ using namespace std;
 	* 3)после расширения заполняем его нулями
 	*/
 	void Array::expand() {
+		int newSize = size * expCoef;
 		long long* newArr = nullptr;
-		if (size > 0) newArr = new long long[size * expCoef];
-		else newArr = new long long[1];
+		newArr = (size > 0) ? new long long[newSize] : new long long[1];
 		memcpy(newArr, arr, size * sizeof(long long));
 		delete[] arr;
 		arr = newArr;
-		if (size != 0) size *= expCoef;
-		else size++;
+		size = (size != 0) ? newSize : 1;
 		init(elemNum);
 	}
 

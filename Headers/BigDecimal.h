@@ -1,5 +1,6 @@
 #pragma once
-#include "BigInt.h"
+#include "Number.h"
+#include "Array.h"
 
 // ласс BigDecimal, €вл€ющийс€ наследником класса Number
 class BigDecimal : public Number
@@ -41,7 +42,7 @@ public:
 
 private:
 	Array array;
-	short sign; //long long dotPos;
+	short sign;
 	int intCells;
 	const static short bufSize = 317;
 	const static int BASE = 1000000000;

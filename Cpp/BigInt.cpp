@@ -1,11 +1,13 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "BigInt.h"
 #include "Array.h"
 #include <cstdlib>
 #include <iostream>
-#include <string.h>
 
 	// онструктор по умолчанию
-	BigInt::BigInt() : BigInt((long long)0) {
+	BigInt::BigInt() {
+		sign = 1;
 	}
 
 	/*
@@ -37,28 +39,26 @@
 
 	// онструктор, создающий BigInt из строки
 	BigInt::BigInt(char* valStr) {
-		long long len, cells;
+		long long len, cells, totalDig;
+		for (len = 0; valStr[len] != '\0'; len++) {
+			if (valStr[len] < 48 || valStr[len]>57)
+				throw std::invalid_argument("BigInt constuctor: invalid string");
+		}
 		if (valStr[0] == '-') {
 			sign = -1;
 			valStr++;
 		}
 		else sign = 1;
-		for (len = 0; valStr[len] != '\0'; len++) {
-			if (valStr[len] < 48 || valStr[len]>57)
-				throw("Exception: invalid string");
-		}
-		cells = (len % 9) == 0 ? (len / 9) : (len / 9 + 1);
+		cells = ((len % 9) == 0) ? (len / 9) : (len / 9 + 1);
+		totalDig = len;
 		array.makeEqualSize(array.getSize(), cells);
-		for (size_t i = 0,j = 0; i < len; i+=9,j++) {
+		for (int i = 0,j = 0; i < len; j++) {
 			char digStr[10] = { 0 };
-			if (i + 8 < len - 1) {
-				memcpy(digStr, valStr + i, 9);
-				array.insertByIndex(_atoi64(digStr), j);
-			}
-			else {
-				memcpy(digStr, valStr+i, len - i);
-				array.insertByIndex(_atoi64(digStr), j);
-			}
+			int digAmount = ((totalDig % 9) == 0) ? 9 : (totalDig % 9);
+			memcpy(digStr, valStr + i, digAmount);
+			array.insertByIndex(_atoi64(digStr), j);
+			i += digAmount;
+			totalDig -= digAmount;
 		}
 	}
 
@@ -87,24 +87,25 @@
 
 	//ѕрисваивание знака числу
 	void BigInt::setSign(short newSign) {
-		if (newSign < -1 || newSign == 0 || newSign >> 1)
-			throw("Exception: invalid sign");
+		if (newSign < -1 || newSign == 0 || newSign > 1)
+			throw std::invalid_argument("Exception: invalid sign");
 		sign = newSign;
 	}
 
 	//—оздание строкового представлени€ класса BigInt в виде обычного числа
 	char* BigInt::cStr() {
-		int size=0;
-		char* cStr = array.cStr();
-		for (int i = 0; cStr[i] != '\0'; i++)
-			size++;
-		if (sign == 1) memmove(cStr, cStr + 1, size);
-		else cStr[0] = '-';
-		for (int i = 0; i < size; i++) {
-			if (cStr[i] == ' ' || cStr[i] == ',' || cStr[i] == ']') {
-				memmove(cStr + i, cStr + i + 1, size - i);
-				size--;
-			}
+		int arrSize = array.getSize();
+		int cStrSize = arrSize*9+(arrSize-1)+1;
+		char* cStr = new char[cStrSize];
+		int digits;
+		size_t i = 0, j = 0;
+		for (; i < cStrSize && j < arrSize; i++, j++) {
+			long long curNum = array.getByIndex(j);
+			digits = countDigits(curNum);
+			memset(cStr + i, '0', 9);
+			_i64toa(curNum, cStr + i + (9 - digits), 10);
+			i += 8;
+			if (j + 1 != arrSize) cStr[++i] = ' ';
 		}
 		return cStr;
 	}
@@ -261,9 +262,9 @@
 					long long factorElem = (j >= 0) ? secondBi->array.getByIndex(j) : 0;
 					long long resElem = bigMult.array.getByIndex(i + j + 2);
 					resMult = resElem + (curElem * factorElem) + rest;
-					if (resElem == 0) 
+					if (resElem == 0 && resMult != 0) 
 						bigMult.array.insertByIndex(resMult % BASE, i + j + 2);
-					else {
+					else if (resElem !=0) {
 						bigMult.array.deleteByIndex(i + j + 2);
 						bigMult.array.insertByIndex(resMult % BASE, i + j + 2);
 					}
@@ -297,7 +298,7 @@
 		BigInt result, curDivr(*secondBi);
 		curDivr.sign = 1;
 		if (curDivr.array.isEmpty())
-			throw("Exception: division by zero");
+			throw std::invalid_argument("divide: division by zero");
 		if (compare(&curDivr) < 0) {
 			result.array.addToEnd(0);
 			swap(&result);
@@ -319,7 +320,7 @@
 				}
 				else right = mid - 1;
 			}
-			if (curFactor != 0) result.array.insertByIndex(curFactor, i);
+			result.array.insertByIndex(curFactor, i);
 			BigInt tmpFactor(curFactor);
 			tmpFactor.multiply(&curDivr);
 			curDividend.subtract(&tmpFactor);
@@ -330,8 +331,10 @@
 				j--;
 			}
 		}
-		while (result.array.getByIndex(0) == 0) result.array.shiftSliceL(0);
-		result.array.reduceCap(array.getSize() - result.array.getElmNum());
+		while (result.array.getByIndex(0) == 0) {
+			result.array.shiftSliceL(0);
+			result.array.reduceCap(1);
+		}
 		result.sign = (sign == secondBi->sign) ? 1 : -1;
 		swap(&result);
 	}
