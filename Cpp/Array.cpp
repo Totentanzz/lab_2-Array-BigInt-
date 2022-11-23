@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include "Array.h"
 #include "DataException.h"
+#include <fstream>
 
 using namespace std;
 
@@ -162,7 +163,7 @@ using namespace std;
 	}
 	
 	//Метод получения по индексу массива
-	long long Array::getByIndex(int index) {
+	long long& Array::getByIndex(int index) {
 		if (index < 0 || index >= size)
 			throw DataException("getByIndex: index is out of array bounds", index);
 		return arr[index];
@@ -265,12 +266,15 @@ using namespace std;
 	void Array::expand() {
 		int newSize = size * expCoef;
 		long long* newArr = nullptr;
+		int lstElem=0;
+		for (size_t i = 0; i < size; i++)
+			if (arr[i] != 0) lstElem = i;
 		newArr = (size > 0) ? new long long[newSize] : new long long[1];
 		memcpy(newArr, arr, size * sizeof(long long));
 		delete[] arr;
 		arr = newArr;
 		size = (size != 0) ? newSize : 1;
-		init(elemNum);
+		init(++lstElem);
 	}
 
 	//Метод подсчета кол-ва цифр числа value (включая знак)
@@ -284,3 +288,106 @@ using namespace std;
 		return digits;
 	}
 
+	void Array::writeToBinFile(const char* file, int startPos) {
+		ofstream ofstrm(file, ios::binary | ios::out | ios::_Nocreate);
+		if (!ofstrm)
+			throw ofstream::failure("Can't open file");
+		ofstrm.seekp(startPos);
+		ofstrm.write((char*)&size, sizeof(size));
+		ofstrm.write((char*)&elemNum, sizeof(elemNum));
+		for (size_t i = 0; i < size; i++) {
+			ofstrm.write((char*)(arr + i), sizeof(arr[i]));
+		}
+		ofstrm.close();
+	}
+
+	void Array::readFromBinFile(const char* file, int startPos) {
+		ifstream ifstrm(file, ios::binary | ios::in);
+		if (!ifstrm) 
+			throw ifstream::failure("Can't open file");
+		ifstrm.seekg(startPos);
+		if (size > 0) delete[] arr;
+		ifstrm.read((char*)&size, sizeof(int));
+		ifstrm.read((char*)&elemNum, sizeof(int));
+		arr = new long long[size];
+		for (size_t i = 0; i < size; i++) {
+			long long num;
+			ifstrm.read((char*)&num, sizeof(long long));
+			arr[i] = num;
+		}
+		ifstrm.close();
+	}
+
+	Array& Array::operator+ (long long num) {
+		addToEnd(num);
+		return *this;
+	}
+
+	Array& Array::operator- () {
+		deleteByIndex(elemNum - 1);
+		return *this;
+	}
+
+	long long& Array::operator[] (int index) {
+		return getByIndex(index);
+	}
+
+	Array& Array::operator= (const Array& other) {
+		Array tmp(other);
+		swapArray(*this,tmp);
+		return *this;
+	}
+
+
+	Array& Array::operator<< (int index) { 
+		shiftSliceL(index);
+		return *this;
+	}
+
+	Array& Array::operator>> (int index) {
+		shiftSliceR(index);
+		return *this;
+	}
+
+	Array::operator long long*() {
+		return arr;
+	}
+
+	Array::operator char*() {
+		return (char*)arr;
+	}
+
+	ostream& operator<< (ostream& ostrm, Array& object) {
+		ostrm << object.cStr() << endl;
+		return ostrm;
+	}
+
+	istream& operator>> (istream& istrm, Array& object) {
+		for (size_t i = object.elemNum; i < object.size; i++) {
+			istrm >> object[i];
+			object.elemNum++;
+		}
+		return istrm;
+	}
+
+	ofstream& operator<< (ofstream& ofstrm, Array& object) {
+		ofstrm << object.size << ' ' << object.elemNum;
+		for (size_t i = 0; i < object.size; i++) {
+			ofstrm << ' ';
+			ofstrm << object.arr[i];
+		}
+		ofstrm << endl;
+		return ofstrm;
+	}
+
+	ifstream& operator>> (ifstream& ifstrm, Array& object) {
+		if (object.size > 0) delete[] object.arr;
+		ifstrm >> object.size >> object.elemNum;
+		object.arr = new long long[object.size];
+		for (size_t i = 0; i < object.size; i++) {
+			long long num;
+			ifstrm >> num;
+			object.arr[i] = num;
+		}
+		return ifstrm;
+	}

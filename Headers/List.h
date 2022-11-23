@@ -19,7 +19,7 @@ public:
 
 	virtual void deleteByIndex(int index) = 0;
 
-	virtual long long getByIndex(int index) = 0;
+	virtual long long& getByIndex(int index) = 0;
 
 	virtual long long* getSlice(int from, int to) = 0;
 

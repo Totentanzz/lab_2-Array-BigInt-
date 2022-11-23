@@ -37,3 +37,7 @@ void Stack::pop() {
 	deleteByIndex(0);
 	shiftSliceL(0);
 }
+
+//Array& Stack::operator+ (long long num) {
+//	return *this;
+//}

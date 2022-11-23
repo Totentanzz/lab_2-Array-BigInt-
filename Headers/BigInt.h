@@ -40,6 +40,44 @@ public:
 
 	void swap(void* second) override;
 
+	void writeToBinFile(const char* file);
+
+	void readFromBinFile(const char* file);
+
+	BigInt& operator+ (BigInt& added);
+
+	BigInt& operator- (BigInt& subtracted);
+
+	BigInt& operator* (BigInt& factor);
+
+	BigInt& operator/ (BigInt& divider);
+
+	BigInt& operator- ();
+
+	BigInt& operator+ ();
+
+	BigInt& operator= (const BigInt& object);
+
+	friend bool operator< (BigInt& first, BigInt& second);
+
+	friend bool operator> (BigInt& first, BigInt& second);
+
+	friend bool operator== (BigInt& first, BigInt& second);
+
+	friend bool operator!= (BigInt& first, BigInt& second);
+
+	operator long long();
+
+	operator char*();
+
+	friend std::ostream& operator<< (std::ostream& ostrm, BigInt& object);
+
+	friend std::istream& operator>> (std::istream& istrm, BigInt& object);
+
+	friend std::ofstream& operator<< (std::ofstream& ofstrm, BigInt& object);
+
+	friend std::ifstream& operator>> (std::ifstream& ifstrm, BigInt& object);
+
 protected:
 
 private:
@@ -49,5 +87,4 @@ private:
 	const static int BASE = 1000000000;
 
 	int countDigits(long long value);
-
 };

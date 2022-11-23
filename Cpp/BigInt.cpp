@@ -4,6 +4,7 @@
 #include "Array.h"
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 
 	// онструктор по умолчанию
 	BigInt::BigInt() {
@@ -39,16 +40,17 @@
 
 	// онструктор, создающий BigInt из строки
 	BigInt::BigInt(char* valStr) {
-		long long len, cells, totalDig;
-		for (len = 0; valStr[len] != '\0'; len++) {
-			if (valStr[len] < 48 || valStr[len]>57)
-				throw std::invalid_argument("BigInt constuctor: invalid string");
-		}
+		long long len=0, cells, totalDig;
 		if (valStr[0] == '-') {
 			sign = -1;
 			valStr++;
+			len++;
 		}
 		else sign = 1;
+		for (; valStr[len] != '\0' && valStr[len] != '\n'; len++) {
+			if (valStr[len] < 48 || valStr[len]>57)
+				throw std::invalid_argument("BigInt constuctor: invalid string");
+		}
 		cells = ((len % 9) == 0) ? (len / 9) : (len / 9 + 1);
 		totalDig = len;
 		array.makeEqualSize(array.getSize(), cells);
@@ -95,17 +97,20 @@
 	//—оздание строкового представлени€ класса BigInt в виде обычного числа
 	char* BigInt::cStr() {
 		int arrSize = array.getSize();
-		int cStrSize = arrSize*9+(arrSize-1)+1;
+		//int cStrSize = arrSize*9+(arrSize-1)+1;
+		int cStrSize = arrSize * 9 + 2;
 		char* cStr = new char[cStrSize];
-		int digits;
-		size_t i = 0, j = 0;
+		cStr[0] = sign == -1 ? '-' : '+' ;
+		int digits, nulAmount;
+		size_t i = 1, j = 0;
 		for (; i < cStrSize && j < arrSize; i++, j++) {
 			long long curNum = array.getByIndex(j);
 			digits = countDigits(curNum);
-			memset(cStr + i, '0', 9);
-			_i64toa(curNum, cStr + i + (9 - digits), 10);
-			i += 8;
-			if (j + 1 != arrSize) cStr[++i] = ' ';
+			nulAmount = (j > 0) ? (9 - digits) : 0;
+			_i64toa(curNum, cStr + i + nulAmount, 10);
+			memset(cStr + i, '0', nulAmount);
+			i += (j > 0) ? 8 : (digits-1);
+			//if (j + 1 != arrSize) cStr[i] = ' ';
 		}
 		return cStr;
 	}
@@ -358,4 +363,123 @@
 			value /= 10;
 		}
 		return digits;
+	}
+
+	void BigInt::writeToBinFile(const char* file) {
+		std::ofstream ofstrm(file, std::ios::binary | std::ios::out | std::ios::_Nocreate);
+		if (ofstrm.fail())
+			throw std::ofstream::failure("Can't open file");
+		ofstrm.write((char*)&sign,sizeof(sign));
+		array.writeToBinFile(file,2);
+		ofstrm.close();
+	}
+
+	void BigInt::readFromBinFile(const char* file) {
+		std::ifstream ifstrm(file, std::ios::binary | std::ios::in);
+		if (ifstrm.fail()) 
+			throw std::ifstream::failure("Can't open file");
+		ifstrm.read((char*)&sign, sizeof(short));
+		array.readFromBinFile(file,2);
+		ifstrm.close();
+	}
+
+	BigInt& BigInt::operator+ (BigInt& added) {
+		add(&added);
+		return *this;
+	}
+
+	BigInt& BigInt::operator- (BigInt& subtracted) {
+		subtract(&subtracted);
+		return *this;
+	}
+
+	BigInt& BigInt::operator* (BigInt& factor) {
+		multiply(&factor);
+		return *this;
+	}
+
+	BigInt& BigInt::operator/ (BigInt& divider) {
+		divide(&divider);
+		return *this;
+	}
+
+	BigInt& BigInt::operator- () {
+		setSign(-1 * getSign());
+		return *this;
+	}
+
+	BigInt& BigInt::operator+ () {
+		return *this;
+	}
+
+	BigInt& BigInt::operator= (const BigInt& object) {
+		BigInt tmp(object);
+		swap(&tmp);
+		return *this;
+	}
+
+	bool operator< (BigInt& first, BigInt& second) {
+		bool state = first.compare(&second) < 0 ? 1 : 0;
+		return state;
+	}
+
+	bool operator> (BigInt& first, BigInt& second) {
+		bool state = first.compare(&second) > 0 ? 1 : 0;
+		return state;
+	}
+
+	bool operator== (BigInt& first, BigInt& second) {
+		bool state = first.compare(&second) == 0 ? 1 : 0;
+		return state;
+	}
+
+	bool operator!= (BigInt& first, BigInt& second) {
+		bool state = first.compare(&second)!=0 ? 1 : 0;
+		return state;
+	}
+
+	BigInt::operator long long() {
+		long long number = _atoi64(cStr());
+		return number;
+	}
+
+	BigInt::operator char*() {
+		return (char*)array;
+	}
+
+	std::ostream& operator<< (std::ostream& ostrm, BigInt& object) {
+		ostrm << object.cStr() << std::endl;
+		return ostrm;
+	}
+
+	std::istream& operator>> (std::istream& istrm, BigInt& object) {
+		int strSize = 30, iBufSize;
+		char* numStr = new char[strSize];
+		istrm.getline(numStr, strSize);
+		iBufSize = istrm.rdbuf()->in_avail();
+		if (strSize < strSize+iBufSize) {
+			int newSize = strSize;
+			while (newSize < strSize+iBufSize) newSize *= 2;
+			char* tmp = new char[newSize];
+			memcpy(tmp, numStr, strSize);
+			istrm.rdbuf()->sgetn(tmp + (strSize-1), iBufSize);
+			istrm.clear();
+			delete[] numStr;
+			numStr = tmp;
+		}
+		BigInt tmpBigInt(numStr);
+		object.swap(&tmpBigInt);
+		return istrm;
+	}
+
+	std::ofstream& operator<< (std::ofstream& ofstrm, BigInt& object) {
+		ofstrm << object.sign << ' ';
+		ofstrm << object.array;
+		return ofstrm;
+	}
+
+	std::ifstream& operator>> (std::ifstream& ifstrm, BigInt& object) {
+		ifstrm >> object.sign;
+		ifstrm >> object.array;
+		return ifstrm;
 	}
